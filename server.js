@@ -24,7 +24,7 @@ const {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SESSION_DIR = path.join(__dirname, "Sessions");
+const SESSION_DIR = path.join("/tmp", "Sessions");
 const PORT = process.env.SESSION_PORT || 3999;
 
 if (!fs.existsSync(SESSION_DIR)) {
