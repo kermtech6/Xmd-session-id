@@ -134,8 +134,20 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Page d'accueil — choix QR ou code d'appairage
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
+});
+
+// Page QR dédiée (le fichier s'appelle qr.html, la route reste /scan
+// car /qr sert déjà l'image du QR code plus bas)
+app.get("/scan", (req, res) => {
+  res.sendFile(path.join(__dirname, "qr.html"));
+});
+
+// Page code d'appairage dédiée
+app.get("/pair", (req, res) => {
+  res.sendFile(path.join(__dirname, "pair.html"));
 });
 
 app.get("/qr", async (req, res) => {
