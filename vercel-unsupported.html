@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KERM Session — Vercel non supporté</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      margin: 0;
+    }
+    .box {
+      max-width: 520px;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 28px;
+      background: #161b22;
+    }
+    h1 { color: #f85149; font-size: 1.25rem; margin: 0 0 12px; }
+    p { color: #8b949e; line-height: 1.6; margin: 0 0 12px; }
+    code { background: #21262d; padding: 2px 6px; border-radius: 4px; color: #79c0ff; }
+    a { color: #58a6ff; }
+    ul { color: #c9d1d9; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Vercel ne peut pas héberger ce serveur de session</h1>
+    <p>
+      L’erreur <code>FUNCTION_INVOCATION_FAILED</code> / 500 est normale ici :
+      Baileys garde une connexion WhatsApp WebSocket ouverte pendant plusieurs minutes.
+      Vercel n’exécute que des fonctions serverless courtes, sans process persistant.
+    </p>
+    <p><strong>Déployez plutôt sur :</strong></p>
+    <ul>
+      <li><a href="https://render.com" target="_blank" rel="noopener">Render</a> (Web Service, gratuit) — fichier <code>render.yaml</code> inclus</li>
+      <li><a href="https://railway.app" target="_blank" rel="noopener">Railway</a></li>
+      <li><a href="https://www.koyeb.com" target="_blank" rel="noopener">Koyeb</a></li>
+      <li>Ou en local : <code>npm install && npm start</code> → <code>http://localhost:3999</code></li>
+    </ul>
+    <p>Repo : <a href="https://github.com/kermtech6/Xmd-session-id">kermtech6/Xmd-session-id</a></p>
+  </div>
+</body>
+</html>

@@ -2,31 +2,46 @@
 
 Projet **séparé** du bot. Son propre port, son propre serveur, ses propres `node_modules`.
 
-## Installation
+Génère une session WhatsApp (QR ou code d’appairage) via [Baileys](https://github.com/WhiskeySockets/Baileys).
+
+## Important : ne pas déployer sur Vercel
+
+Ce serveur **ne fonctionne pas sur Vercel**.
+
+- Vercel = fonctions serverless (timeout court, pas de WebSocket persistant, pas de process long).
+- Baileys = connexion WhatsApp ouverte pendant le scan QR / l’appairage.
+
+Résultat typique sur Vercel : **500** / `FUNCTION_INVOCATION_FAILED`.
+
+Utilisez **Render**, **Railway**, **Koyeb**, ou lancez en **local**.
+
+## Installation locale
 
 ```bash
-cd session
 npm install
-```
-
-## Lancement
-
-```bash
 npm start
 ```
 
-Ou depuis la racine du projet : `npm run session`
+Ouvrir http://localhost:3999
+
+## Déploiement Render (recommandé)
+
+1. Aller sur [render.com](https://render.com) → New → Web Service
+2. Connecter le repo [kermtech6/Xmd-session-id](https://github.com/kermtech6/Xmd-session-id)
+3. Runtime : Node — Build : `npm install` — Start : `npm start`
+4. Ou utiliser le fichier `render.yaml` (Blueprint)
+
+L’URL publique (ex. `https://xmd-session-id.onrender.com`) remplace localhost.
 
 ## Utilisation
 
-1. Ouvrir http://localhost:3999
-2. Se connecter via QR ou code d'appairage
+1. Ouvrir l’URL du serveur (local ou Render)
+2. Se connecter via QR ou code d’appairage
 3. La session est envoyée en PM + affichée sur le site
-4. Copier la session et la mettre dans `config.js` du **bot** (variable `SESSION_GENEREE`) ou dans `.env` : `SESSION_ID=...`
-
-Le seul lien avec le bot : la session générée doit être utilisée dans le bot.
+4. Copier la session dans le bot : `SESSION_ID` (`.env`) ou `SESSION_GENEREE` (`config.js`)
 
 ## Dépannage
 
-- **Connection Failure** : Supprimez le dossier `Sessions/` et réessayez. Vérifiez que vous n'avez pas trop d'appareils connectés (WhatsApp limite à 4).
-- **Alternative si le serveur session échoue** : Mettez `SESSION_GENEREE = "LOCAL"` dans config.js, lancez le bot (`npm start`), ouvrez http://localhost:PORT/connect et scannez le QR. Une fois connecté, la session est dans `lib/Sessions/creds.json`. Encodez son contenu en base64 et mettez-le dans `SESSION_GENEREE`.
+- **Connection Failure** : supprimer le dossier `Sessions/` et réessayer. WhatsApp limite à ~4 appareils connectés.
+- **Vercel 500** : déployer ailleurs (voir ci-dessus). Un redéploiement Vercel affichera une page d’explication au lieu du crash opaque.
+- **PORT** : sur Render/Railway, `PORT` est fourni automatiquement (pris en charge par `server.js`).

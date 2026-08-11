@@ -10,7 +10,16 @@ const qrcode = require("qrcode");
 const pino = require("pino");
 
 const SESSION_DIR = path.join(__dirname, "Sessions");
-const PORT = process.env.SESSION_PORT || 3999;
+// Render / Railway / Koyeb injectent PORT. Vercel serverless ne convient pas à Baileys.
+const PORT = Number(process.env.PORT || process.env.SESSION_PORT || 3999);
+
+if (process.env.VERCEL) {
+  console.error(
+    "[FATAL] Ce serveur WhatsApp (Baileys) ne peut pas tourner sur Vercel (fonctions serverless sans WebSocket persistant).\n" +
+      "Déployez sur Render, Railway ou Koyeb. Voir README.md"
+  );
+  process.exit(1);
+}
 
 if (!fs.existsSync(SESSION_DIR)) {
   fs.mkdirSync(SESSION_DIR, { recursive: true });
@@ -293,7 +302,7 @@ async function startSession() {
 
 startSession().catch(console.error);
 
-app.listen(PORT, () => {
-  console.log(`\nSession Serveur: http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`\nSession Serveur: http://0.0.0.0:${PORT}`);
   console.log("Connectez via QR ou code d'appairage, puis recevez la session en PM.\n");
 });
