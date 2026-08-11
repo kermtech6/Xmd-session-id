@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "postinstall": "node patch-baileys.js"
+    "postinstall": "node patch-baileys.cjs"
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
