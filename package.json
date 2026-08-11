@@ -1,0 +1,17 @@
+{
+  "name": "kerm-session",
+  "version": "1.0.0",
+  "description": "Serveur de session WhatsApp - indépendant du bot",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "node patch-baileys.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.21",
+    "express": "^4.18.1",
+    "pino": "^7.0.5",
+    "qrcode": "^1.5.3"
+  }
+}

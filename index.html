@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KERM - Session WhatsApp</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #21262d 100%);
+      min-height: 100vh;
+      color: #e6edf3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: rgba(22, 27, 34, 0.95);
+      border: 1px solid #30363d;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      color: #58a6ff;
+    }
+    .subtitle { color: #8b949e; font-size: 0.9rem; margin-bottom: 24px; }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .tab {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #8b949e;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .tab:hover { background: #30363d; color: #e6edf3; }
+    .tab.active { background: #238636; color: #fff; border-color: #238636; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .qr-container {
+      background: #fff;
+      padding: 16px;
+      border-radius: 12px;
+      display: inline-block;
+      margin: 16px 0;
+    }
+    .qr-container img { display: block; }
+    .pairing-input {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      background: #0d1117;
+      color: #e6edf3;
+      font-size: 1rem;
+      margin-bottom: 12px;
+    }
+    .pairing-input::placeholder { color: #6e7681; }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: #238636;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #2ea043; }
+    .btn:disabled { background: #21262d; cursor: not-allowed; color: #6e7681; }
+    .code-display {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 20px;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 8px;
+      text-align: center;
+      margin: 16px 0;
+      color: #3fb950;
+    }
+    .status { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.9rem; }
+    .status.waiting { background: #1f2937; color: #fbbf24; }
+    .status.connected { background: #064e3b; color: #34d399; }
+    .status.error { background: #7f1d1d; color: #f87171; }
+    .instructions { font-size: 0.85rem; color: #8b949e; margin-top: 16px; line-height: 1.6; }
+    .session-box {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 16px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      word-break: break-all;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .session-copy {
+      margin-top: 8px;
+      padding: 10px 16px;
+      background: #238636;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .session-copy:hover { background: #2ea043; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>KERM - Session WhatsApp</h1>
+    <p class="subtitle">Générez une session WhatsApp (indépendant du bot)</p>
+    <div class="tabs">
+      <button class="tab active" data-tab="qr">QR Code</button>
+      <button class="tab" data-tab="pair">Code d'appairage</button>
+    </div>
+    <div id="panel-qr" class="panel active">
+      <p class="instructions">Scannez le QR code avec WhatsApp : Paramètres → Appareils connectés → Connecter un appareil. La session sera envoyée en PM.</p>
+      <div class="qr-container" id="qrBox">
+        <img id="qrImg" src="/qr?t=" alt="QR Code" style="width:256px;height:256px;">
+      </div>
+      <div id="qrStatus" class="status waiting">Chargement du QR code...</div>
+      <button class="btn" id="resetBtn" style="margin-top:12px;background:#6e7681;">Réinitialiser la session</button>
+      <div id="qrSessionBox" style="display:none;">
+        <div class="session-box" id="qrSessionText"></div>
+        <button class="session-copy" id="qrCopyBtn">Copier la session</button>
+      </div>
+    </div>
+    <div id="panel-pair" class="panel">
+      <p class="instructions">Entrez votre numéro avec indicatif pays (ex: 237651234567). Le code sera envoyé sur votre appareil connecté, puis la session en PM.</p>
+      <input type="tel" class="pairing-input" id="phoneInput" placeholder="237651234567">
+      <button class="btn" id="getCodeBtn">Obtenir le code</button>
+      <div id="pairCode" class="code-display" style="display:none;"></div>
+      <div id="pairStatus" class="status" style="display:none;"></div>
+      <div id="pairSessionBox" style="display:none;">
+        <div class="session-box" id="pairSessionText"></div>
+        <button class="session-copy" id="pairCopyBtn">Copier la session</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const tabs = document.querySelectorAll('.tab');
+    const panels = document.querySelectorAll('.panel');
+    let qrIv = null;
+    let pairIv = null;
+
+    tabs.forEach(t => {
+      t.onclick = () => {
+        tabs.forEach(x => x.classList.remove('active'));
+        panels.forEach(p => p.classList.remove('active'));
+        t.classList.add('active');
+        document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+        if (t.dataset.tab === 'qr') startQrPoll();
+      };
+    });
+
+    function showSession(prefix, session) {
+      if (!session) return;
+      document.getElementById(prefix + 'SessionBox').style.display = 'block';
+      document.getElementById(prefix + 'SessionText').textContent = session;
+    }
+
+    function startQrPoll() {
+      const img = document.getElementById('qrImg');
+      const status = document.getElementById('qrStatus');
+      if (qrIv) clearInterval(qrIv);
+      const poll = () => {
+        fetch('/api/status').then(r => r.json()).then(d => {
+          if (d.connected) {
+            status.className = 'status connected';
+            status.textContent = d.session
+              ? 'Connecté ! Collez la session dans config.js (SESSION_GENEREE).'
+              : 'Connecté ! Préparation de la session...';
+            showSession('qr', d.session);
+            if (d.session && qrIv) { clearInterval(qrIv); qrIv = null; }
+            return;
+          }
+          if (d.qr) {
+            img.src = '/qr?t=' + Date.now();
+            status.className = 'status waiting';
+            status.textContent = 'Scannez le QR code avec WhatsApp';
+          } else {
+            status.className = 'status waiting';
+            status.textContent = 'En attente du QR (connexion WhatsApp)...';
+          }
+        }).catch(() => {
+          status.className = 'status error';
+          status.textContent = 'Erreur de connexion au serveur';
+        });
+      };
+      poll();
+      qrIv = setInterval(poll, 2500);
+    }
+
+    startQrPoll();
+
+    document.getElementById('resetBtn').onclick = async () => {
+      const status = document.getElementById('qrStatus');
+      status.className = 'status waiting';
+      status.textContent = 'Réinitialisation...';
+      document.getElementById('qrSessionBox').style.display = 'none';
+      try {
+        await fetch('/api/reset', { method: 'POST' });
+        status.textContent = 'Session effacée, nouveau QR en cours...';
+        startQrPoll();
+      } catch (e) {
+        status.className = 'status error';
+        status.textContent = e.message || 'Erreur reset';
+      }
+    };
+
+    document.getElementById('getCodeBtn').onclick = async () => {
+      const phone = document.getElementById('phoneInput').value.replace(/\D/g, '');
+      const btn = document.getElementById('getCodeBtn');
+      const codeDiv = document.getElementById('pairCode');
+      const statusDiv = document.getElementById('pairStatus');
+      if (!phone || phone.length < 10) {
+        statusDiv.style.display = 'block';
+        statusDiv.className = 'status error';
+        statusDiv.textContent = 'Numéro invalide (ex: 237651234567)';
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Génération...';
+      try {
+        const r = await fetch('/api/pairing-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+        codeDiv.textContent = d.code;
+        codeDiv.style.display = 'block';
+        statusDiv.style.display = 'block';
+        statusDiv.className = 'status waiting';
+        statusDiv.textContent = 'Entrez ce code dans WhatsApp : Paramètres → Appareils connectés → Connecter avec un numéro.';
+        if (pairIv) clearInterval(pairIv);
+        pairIv = setInterval(async () => {
+          try {
+            const st = await (await fetch('/api/status')).json();
+            if (st.connected) {
+              clearInterval(pairIv);
+              pairIv = null;
+              statusDiv.className = 'status connected';
+              statusDiv.textContent = st.session
+                ? 'Connecté ! Collez la session dans config.js (SESSION_GENEREE).'
+                : 'Connecté ! Préparation de la session...';
+              showSession('pair', st.session);
+            }
+          } catch (_) {}
+        }, 2500);
+      } catch (e) {
+        statusDiv.style.display = 'block';
+        statusDiv.className = 'status error';
+        statusDiv.textContent = e.message || 'Erreur';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Obtenir le code';
+    };
+
+    function copySession(el, targetId) {
+      const text = document.getElementById(targetId).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        el.textContent = 'Copié !';
+        setTimeout(() => { el.textContent = 'Copier la session'; }, 2000);
+      });
+    }
+    document.getElementById('qrCopyBtn').onclick = (e) => copySession(e.target, 'qrSessionText');
+    document.getElementById('pairCopyBtn').onclick = (e) => copySession(e.target, 'pairSessionText');
+  </script>
+</body>
+</html>
