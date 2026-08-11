@@ -3,15 +3,10 @@
  * Génère une session via QR ou code d'appairage
  * Envoie la session en PM + affiche sur le site
  */
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import express from "express";
-import qrcode from "qrcode";
-import pino from "pino";
-import baileys from "@whiskeysockets/baileys";
-import { Boom } from "@hapi/boom";
-
+const fs = require("fs");
+const path = require("path");
+const express = require("express");
+const baileys = require("@whiskeysockets/baileys");
 const {
   useMultiFileAuthState,
   makeWASocket,
@@ -20,29 +15,12 @@ const {
   fetchLatestBaileysVersion,
   fetchLatestWaWebVersion
 } = baileys;
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const SESSION_DIR = path.join("/tmp", "Sessions");
-const PORT = process.env.SESSION_PORT || 3999;
-
-if (!fs.existsSync(SESSION_DIR)) {
-  fs.mkdirSync(SESSION_DIR, { recursive: true });
-}
-
-const app = express();
-app.use(express.json());
-app.use(express.static(__dirname));
-
-let sock = null;
-let pairingPhone = null;
-let globalQr = null;
-let globalSession = null;
-let starting = false;
-let restartTimer = null;
+const { Boom } = require("@hapi/boom");
+const qrcode = require("qrcode");
+const pino = require("pino");
 
 async function resolveWaVersion() {
+  // Version live WhatsApp Web (évite "Couldn't link device" / 408 sur version Baileys stale)
   try {
     if (typeof fetchLatestWaWebVersion === "function") {
       const live = await fetchLatestWaWebVersion({});
@@ -63,6 +41,24 @@ async function resolveWaVersion() {
     return undefined;
   }
 }
+
+const SESSION_DIR = path.join(__dirname, "Sessions");
+const PORT = process.env.SESSION_PORT || 3999;
+
+if (!fs.existsSync(SESSION_DIR)) {
+  fs.mkdirSync(SESSION_DIR, { recursive: true });
+}
+
+const app = express();
+app.use(express.json());
+app.use(express.static(__dirname));
+
+let sock = null;
+let pairingPhone = null;
+let globalQr = null;
+let globalSession = null;
+let starting = false;
+let restartTimer = null;
 
 function clearSessionFiles() {
   try {
@@ -128,6 +124,7 @@ app.post("/api/pairing-code", async (req, res) => {
     if (!sock) {
       return res.json({ error: "Connexion non prête, réessayez dans quelques secondes" });
     }
+    // Pairing code requires waiting until socket is ready (QR phase / connecting)
     await new Promise((r) => setTimeout(r, 1500));
     if (typeof sock.requestPairingCode !== "function") {
       return res.json({ error: "Connexion non prête" });
@@ -164,6 +161,7 @@ async function startSession() {
     globalQr = null;
 
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+
     const version = await resolveWaVersion();
     const logger = pino({ level: "silent" });
 
@@ -208,12 +206,14 @@ async function startSession() {
         stopSocket();
         globalQr = null;
 
+        // restartRequired / stream errored after pair → reconnect with saved creds
         if (statusCode === DisconnectReason.restartRequired || statusCode === 515) {
           console.log("Restart requis. Reconnexion...");
           scheduleRestart(1500);
           return;
         }
 
+        // Bad session / banned / method not allowed → wipe and retry fresh QR
         if (
           statusCode === DisconnectReason.badSession ||
           statusCode === DisconnectReason.connectionReplaced ||
@@ -238,6 +238,7 @@ async function startSession() {
           return;
         }
 
+        // Autres erreurs réseau / timeout → retry sans wipe
         console.log("Reconnexion automatique...");
         scheduleRestart(3000);
         return;
@@ -252,6 +253,7 @@ async function startSession() {
         if (!targetJid) return;
 
         try {
+          // laisser le temps à creds.json d'être écrit
           await new Promise((r) => setTimeout(r, 2500));
 
           let sessionB64;
