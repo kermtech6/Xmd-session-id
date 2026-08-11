@@ -1,7 +1,6 @@
 /**
- * Serveur de session WhatsApp - 100% indépendant du bot
- * Génère une session via QR ou code d'appairage
- * Envoie la session en PM + affiche sur le site
+ * Serveur de session WhatsApp — indépendant du bot
+ * Compatible Railway / Render / Koyeb (PORT dynamique + healthcheck).
  */
 const fs = require("fs");
 const path = require("path");
@@ -19,13 +18,48 @@ const { Boom } = require("@hapi/boom");
 const qrcode = require("qrcode");
 const pino = require("pino");
 
+const SESSION_DIR = path.join(__dirname, "Sessions");
+// Railway injecte PORT — ne jamais hardcoder en cloud
+const PORT = Number(process.env.PORT || process.env.SESSION_PORT || 3999);
+const PUBLIC_URL = process.env.RAILWAY_PUBLIC_DOMAIN
+  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  : process.env.RENDER_EXTERNAL_URL ||
+    process.env.APP_URL ||
+    `http://localhost:${PORT}`;
+
+if (process.env.VERCEL) {
+  console.error(
+    "[FATAL] Baileys ne tourne pas sur Vercel. Utilisez Railway / Render / Koyeb."
+  );
+  process.exit(1);
+}
+
+if (!fs.existsSync(SESSION_DIR)) {
+  fs.mkdirSync(SESSION_DIR, { recursive: true });
+}
+
+const app = express();
+app.set("trust proxy", 1);
+app.use(express.json({ limit: "32kb" }));
+
+let sock = null;
+let pairingPhone = null;
+let globalQr = null;
+let globalSession = null;
+let starting = false;
+let restartTimer = null;
+let httpReady = false;
+
 async function resolveWaVersion() {
-  // Version live WhatsApp Web (évite "Couldn't link device" / 408 sur version Baileys stale)
   try {
     if (typeof fetchLatestWaWebVersion === "function") {
       const live = await fetchLatestWaWebVersion({});
       if (live?.version) {
-        console.log("WA Web version:", live.version.join("."), live.isLatest === false ? "(parsed)" : "");
+        console.log(
+          "WA Web version:",
+          live.version.join("."),
+          live.isLatest === false ? "(parsed)" : ""
+        );
         return live.version;
       }
     }
@@ -34,31 +68,17 @@ async function resolveWaVersion() {
   }
   try {
     const latest = await fetchLatestBaileysVersion();
-    console.log("WA Baileys version:", latest.version.join("."), latest.isLatest ? "(latest)" : "(fallback)");
+    console.log(
+      "WA Baileys version:",
+      latest.version.join("."),
+      latest.isLatest ? "(latest)" : "(fallback)"
+    );
     return latest.version;
   } catch (e) {
-    console.warn("fetchLatestBaileysVersion échoué, défaut Baileys:", e.message);
+    console.warn("fetchLatestBaileysVersion échoué:", e.message);
     return undefined;
   }
 }
-
-const SESSION_DIR = path.join(__dirname, "Sessions");
-const PORT = process.env.SESSION_PORT || 3999;
-
-if (!fs.existsSync(SESSION_DIR)) {
-  fs.mkdirSync(SESSION_DIR, { recursive: true });
-}
-
-const app = express();
-app.use(express.json());
-app.use(express.static(__dirname));
-
-let sock = null;
-let pairingPhone = null;
-let globalQr = null;
-let globalSession = null;
-let starting = false;
-let restartTimer = null;
 
 function clearSessionFiles() {
   try {
@@ -89,6 +109,15 @@ function stopSocket() {
   } catch (_) {}
   sock = null;
 }
+
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    ok: true,
+    http: httpReady,
+    whatsapp: !!sock?.user,
+    qr: !!globalQr
+  });
+});
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
@@ -124,7 +153,6 @@ app.post("/api/pairing-code", async (req, res) => {
     if (!sock) {
       return res.json({ error: "Connexion non prête, réessayez dans quelques secondes" });
     }
-    // Pairing code requires waiting until socket is ready (QR phase / connecting)
     await new Promise((r) => setTimeout(r, 1500));
     if (typeof sock.requestPairingCode !== "function") {
       return res.json({ error: "Connexion non prête" });
@@ -161,7 +189,6 @@ async function startSession() {
     globalQr = null;
 
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
-
     const version = await resolveWaVersion();
     const logger = pino({ level: "silent" });
 
@@ -187,7 +214,7 @@ async function startSession() {
 
       if (qrData) {
         globalQr = qrData;
-        console.log("QR prêt — ouvrez http://localhost:" + PORT);
+        console.log("QR prêt — ouvrez", PUBLIC_URL);
       }
 
       if (connection === "connecting") {
@@ -206,14 +233,12 @@ async function startSession() {
         stopSocket();
         globalQr = null;
 
-        // restartRequired / stream errored after pair → reconnect with saved creds
         if (statusCode === DisconnectReason.restartRequired || statusCode === 515) {
           console.log("Restart requis. Reconnexion...");
           scheduleRestart(1500);
           return;
         }
 
-        // Bad session / banned / method not allowed → wipe and retry fresh QR
         if (
           statusCode === DisconnectReason.badSession ||
           statusCode === DisconnectReason.connectionReplaced ||
@@ -223,7 +248,7 @@ async function startSession() {
           statusCode === 405 ||
           statusCode === 500
         ) {
-          console.log("Credentials invalides (code", statusCode, "). Suppression et nouveau QR...");
+          console.log("Credentials invalides (code", statusCode, "). Reset...");
           clearSessionFiles();
           globalSession = null;
           scheduleRestart(2000);
@@ -238,7 +263,6 @@ async function startSession() {
           return;
         }
 
-        // Autres erreurs réseau / timeout → retry sans wipe
         console.log("Reconnexion automatique...");
         scheduleRestart(3000);
         return;
@@ -253,15 +277,18 @@ async function startSession() {
         if (!targetJid) return;
 
         try {
-          // laisser le temps à creds.json d'être écrit
           await new Promise((r) => setTimeout(r, 2500));
 
           let sessionB64;
           const credsPath = path.join(SESSION_DIR, "creds.json");
           if (fs.existsSync(credsPath)) {
-            sessionB64 = Buffer.from(fs.readFileSync(credsPath, "utf8"), "utf8").toString("base64");
+            sessionB64 = Buffer.from(fs.readFileSync(credsPath, "utf8"), "utf8").toString(
+              "base64"
+            );
           } else if (sock.authState?.creds) {
-            sessionB64 = Buffer.from(JSON.stringify(sock.authState.creds), "utf8").toString("base64");
+            sessionB64 = Buffer.from(JSON.stringify(sock.authState.creds), "utf8").toString(
+              "base64"
+            );
           } else {
             console.error("creds.json introuvable après connexion");
             return;
@@ -291,9 +318,21 @@ async function startSession() {
   }
 }
 
-startSession().catch(console.error);
+const server = app.listen(PORT, "0.0.0.0", () => {
+  httpReady = true;
+  console.log(`\nSession Serveur prêt sur 0.0.0.0:${PORT}`);
+  console.log(`URL publique: ${PUBLIC_URL}`);
+  console.log("Healthcheck: GET /health\n");
+  startSession().catch(console.error);
+});
 
-app.listen(PORT, () => {
-  console.log(`\nSession Serveur: http://localhost:${PORT}`);
-  console.log("Connectez via QR ou code d'appairage, puis recevez la session en PM.\n");
+server.on("error", (err) => {
+  console.error("[FATAL] Impossible d'écouter sur le port", PORT, err);
+  process.exit(1);
+});
+
+process.on("SIGTERM", () => {
+  console.log("SIGTERM reçu — arrêt propre");
+  stopSocket();
+  server.close(() => process.exit(0));
 });

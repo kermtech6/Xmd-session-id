@@ -1,32 +1,54 @@
 # KERM Session - Serveur indépendant
 
-Projet **séparé** du bot. Son propre port, son propre serveur, ses propres `node_modules`.
+Génère une session WhatsApp (QR ou code d’appairage) via Baileys.
 
-## Installation
+## Déploiement Railway (recommandé)
+
+1. [railway.app](https://railway.app) → New Project → Deploy from GitHub  
+2. Repo : [kermtech6/Xmd-session-id](https://github.com/kermtech6/Xmd-session-id)  
+3. Settings → Networking → **Generate Domain**  
+4. Ouvrir l’URL → QR / code d’appairage  
+
+Déjà configuré (`railway.json` + `nixpacks.toml`) :
+- Builder **NIXPACKS** (pas le Dockerfile par défaut)
+- Start : `npm start`
+- Healthcheck : `GET /health` (OK avant connexion WhatsApp)
+- Bind `0.0.0.0` + `process.env.PORT`
+
+Aucune variable obligatoire. Optionnel : `NODE_ENV=production`.
+
+## Local
 
 ```bash
-cd session
 npm install
-```
-
-## Lancement
-
-```bash
 npm start
 ```
 
-Ou depuis la racine du projet : `npm run session`
+→ http://localhost:3999
+
+## Docker Compose (local)
+
+```bash
+docker compose up --build
+```
+
+Le service écoute le `PORT` du conteneur (défaut 8080 mappé).
+
+## Ne pas utiliser Vercel
+
+Baileys = WebSocket persistant. Vercel = serverless → 500 / `FUNCTION_INVOCATION_FAILED`.
 
 ## Utilisation
 
-1. Ouvrir http://localhost:3999
-2. Se connecter via QR ou code d'appairage
-3. La session est envoyée en PM + affichée sur le site
-4. Copier la session et la mettre dans `config.js` du **bot** (variable `SESSION_GENEREE`) ou dans `.env` : `SESSION_ID=...`
+1. Ouvrir l’URL (Railway ou local)
+2. QR ou code d’appairage
+3. Coller la session dans le bot : `SESSION_ID` ou `SESSION_GENEREE`
 
-Le seul lien avec le bot : la session générée doit être utilisée dans le bot.
+## Dépannage Railway
 
-## Dépannage
-
-- **Connection Failure** : Supprimez le dossier `Sessions/` et réessayez. Vérifiez que vous n'avez pas trop d'appareils connectés (WhatsApp limite à 4).
-- **Alternative si le serveur session échoue** : Mettez `SESSION_GENEREE = "LOCAL"` dans config.js, lancez le bot (`npm start`), ouvrez http://localhost:PORT/connect et scannez le QR. Une fois connecté, la session est dans `lib/Sessions/creds.json`. Encodez son contenu en base64 et mettez-le dans `SESSION_GENEREE`.
+| Symptôme | Cause | Fix |
+|----------|--------|-----|
+| Crashed / healthcheck fail | Mauvais PORT / pas d’écoute | Déjà corrigé |
+| Build OK, 502 | Pas de domaine public | Generate Domain |
+| QR absent | Baileys encore en connexion | Attendre / Réinitialiser |
+| Connection Failure | Trop d’appareils / bad session | Reset ; max ~4 devices |

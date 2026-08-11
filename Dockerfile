@@ -1,26 +1,19 @@
-FROM node:18-slim
+# Optionnel — Railway utilise NIXPACKS (railway.json).
+# Pour docker compose / build manuel.
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-# Installation de Git et des outils nécessaires
 RUN apt-get update && \
-    apt-get install -y \
-    git \
-    python3 \
-    make \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends git python3 make g++ ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copier package.json et le script patch
-COPY package*.json ./
+COPY package.json ./
 COPY patch-baileys.js ./
-
-# Installer les dépendances
 RUN npm install --omit=dev
 
-# Copier le reste du code
 COPY . .
 
-EXPOSE 3000
-
+# Railway / Compose injectent PORT au runtime
+EXPOSE 8080
 CMD ["npm", "start"]
