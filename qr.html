@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KERM — QR Code</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap');
+
+:root {
+  --bg: #06090a;
+  --surface: #0d1310;
+  --surface-2: #111a15;
+  --border: #1e2b22;
+  --border-soft: #17201a;
+  --text: #eaf3ec;
+  --text-dim: #8ba193;
+  --text-faint: #5c7267;
+  --accent: #25d366;
+  --accent-dim: #1a9c4a;
+  --accent-soft: rgba(37, 211, 102, .12);
+  --danger: #ff6b6b;
+  --danger-soft: rgba(255, 107, 107, .1);
+  --warn: #ffb84d;
+  --warn-soft: rgba(255, 184, 77, .1);
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background:
+    radial-gradient(1100px 560px at 50% -8%, #0d1c13 0%, #06090a 55%),
+    var(--bg);
+  min-height: 100vh;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--accent-soft); color: var(--accent); }
+a { color: inherit; text-decoration: none; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.shell { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 30px 20px 50px; }
+
+.top { width: 100%; max-width: 920px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1.05rem; }
+.brand-mark { width: 26px; height: 26px; flex-shrink: 0; }
+.brand-mark circle { fill: none; stroke: var(--accent); stroke-width: 2.4; }
+.brand-mark circle.node { fill: var(--accent); stroke: none; }
+.brand-mark line { stroke: var(--accent-dim); stroke-width: 2; stroke-dasharray: 3 3; }
+.back-link { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--text-dim); padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px; transition: border-color .15s, color .15s; }
+.back-link:hover { color: var(--text); border-color: var(--accent-dim); }
+
+.wrap {
+  width: 100%; max-width: 860px;
+  display: grid; grid-template-columns: 1fr 1.05fr; gap: 22px;
+  align-items: stretch;
+}
+
+.info-card, .qr-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 24px 60px -30px rgba(0,0,0,.7);
+  padding: 32px;
+}
+
+.eyebrow { font-family: 'JetBrains Mono', monospace; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.info-card h1 { font-family: 'Sora', sans-serif; font-size: 1.4rem; font-weight: 700; margin: 10px 0 14px; }
+
+.steps { display: flex; flex-direction: column; gap: 16px; margin-top: 6px; }
+.step { display: flex; gap: 13px; align-items: flex-start; }
+.step-num {
+  width: 26px; height: 26px; border-radius: 8px; background: var(--accent-soft); color: var(--accent);
+  display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace;
+  font-size: .78rem; font-weight: 700; flex-shrink: 0;
+}
+.step-text { font-size: .87rem; color: var(--text-dim); line-height: 1.55; padding-top: 3px; }
+.step-text b { color: var(--text); font-weight: 600; }
+
+.note-box {
+  margin-top: 26px; padding: 14px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--border-soft);
+  font-size: .8rem; color: var(--text-faint); line-height: 1.55;
+}
+
+/* --- QR card --- */
+.qr-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
+
+.qr-frame {
+  background: #fff; padding: 18px; border-radius: var(--radius-sm);
+  display: inline-block; margin: 6px 0 20px; position: relative;
+}
+.qr-frame img { display: block; width: 236px; height: 236px; }
+.qr-frame .corner { position: absolute; width: 20px; height: 20px; border: 2.5px solid var(--accent); }
+.qr-frame .corner.tl { top: -7px; left: -7px; border-right: none; border-bottom: none; border-radius: 6px 0 0 0; }
+.qr-frame .corner.tr { top: -7px; right: -7px; border-left: none; border-bottom: none; border-radius: 0 6px 0 0; }
+.qr-frame .corner.bl { bottom: -7px; left: -7px; border-right: none; border-top: none; border-radius: 0 0 0 6px; }
+.qr-frame .corner.br { bottom: -7px; right: -7px; border-left: none; border-top: none; border-radius: 0 0 6px 0; }
+
+.status {
+  display: flex; align-items: center; gap: 9px; padding: 12px 16px; border-radius: var(--radius-sm);
+  font-size: .87rem; border: 1px solid var(--border-soft); width: 100%; justify-content: center;
+}
+.status .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.status.waiting { background: var(--warn-soft); color: var(--warn); border-color: rgba(255,184,77,.25); }
+.status.waiting .dot { background: var(--warn); animation: pulse 1.6s infinite; }
+.status.connected { background: var(--accent-soft); color: var(--accent); border-color: rgba(37,211,102,.3); }
+.status.connected .dot { background: var(--accent); }
+.status.error { background: var(--danger-soft); color: var(--danger); border-color: rgba(255,107,107,.3); }
+.status.error .dot { background: var(--danger); }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,184,77,.45); } 70% { box-shadow: 0 0 0 8px rgba(255,184,77,0); } 100% { box-shadow: 0 0 0 0 rgba(255,184,77,0); } }
+
+.session-box {
+  background: #060a07; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 14px; margin-top: 14px; font-family: 'JetBrains Mono', monospace; font-size: .74rem;
+  color: var(--text-dim); word-break: break-all; max-height: 130px; overflow-y: auto; width: 100%;
+}
+
+.actions { display: flex; gap: 10px; margin-top: 18px; width: 100%; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 1;
+  padding: 13px; background: var(--accent); border: none; border-radius: var(--radius-sm);
+  color: #06110a; font-weight: 600; font-size: .9rem; cursor: pointer; transition: background .15s, transform .1s;
+}
+.btn:hover { background: #2fe374; }
+.btn:active { transform: scale(.99); }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+.btn-ghost:hover { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+
+@media (max-width: 760px) {
+  .wrap { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="top">
+    <a class="brand" href="/">
+      <svg class="brand-mark" viewBox="0 0 26 26">
+        <circle class="node" cx="6" cy="19" r="2.6"/>
+        <circle class="node" cx="20" cy="7" r="2.6"/>
+        <line x1="8.2" y1="17" x2="17.8" y2="9"/>
+      </svg>
+      KERM
+    </a>
+    <a class="back-link" href="/">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+      Changer de méthode
+    </a>
+  </div>
+
+  <div class="wrap">
+    <div class="info-card">
+      <span class="eyebrow">Méthode QR</span>
+      <h1>Scanne pour connecter</h1>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Ouvre <b>WhatsApp</b> sur ton téléphone.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Va dans <b>Paramètres → Appareils connectés</b>.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Appuie sur <b>Connecter un appareil</b> et scanne le QR ci-contre.</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Ta session est envoyée <b>en message privé</b> et s'affiche ici automatiquement.</div></div>
+      </div>
+      <div class="note-box">Colle ensuite la session dans <code>config.js</code> (variable <code>SESSION_GENEREE</code>) ou dans <code>.env</code> (<code>SESSION_ID</code>) de ton bot KERM XMD.</div>
+    </div>
+
+    <div class="qr-card">
+      <div class="qr-frame" id="qrBox">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <img id="qrImg" src="/qr?t=" alt="QR Code">
+      </div>
+
+      <div id="qrStatus" class="status waiting">
+        <span class="dot"></span> Chargement du QR code…
+      </div>
+
+      <div id="qrSessionBox" style="display:none; width:100%;">
+        <div class="session-box" id="qrSessionText"></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-ghost" id="resetBtn">Réinitialiser</button>
+        <button class="btn" id="qrCopyBtn" style="display:none;">Copier la session</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const img = document.getElementById('qrImg');
+const status = document.getElementById('qrStatus');
+const copyBtn = document.getElementById('qrCopyBtn');
+let qrIv = null;
+
+function showSession(session) {
+  if (!session) return;
+  document.getElementById('qrSessionBox').style.display = 'block';
+  document.getElementById('qrSessionText').textContent = session;
+  copyBtn.style.display = 'flex';
+}
+
+function setStatus(kind, text) {
+  status.className = 'status ' + kind;
+  status.innerHTML = '<span class="dot"></span> ' + text;
+}
+
+function poll() {
+  fetch('/api/status').then(r => r.json()).then(d => {
+    if (d.connected) {
+      setStatus('connected', d.session ? 'Connecté ! Session prête ci-dessous.' : 'Connecté ! Préparation de la session…');
+      showSession(d.session);
+      if (d.session && qrIv) { clearInterval(qrIv); qrIv = null; }
+      return;
+    }
+    if (d.qr) {
+      img.src = '/qr?t=' + Date.now();
+      setStatus('waiting', 'Scanne le QR code avec WhatsApp');
+    } else {
+      setStatus('waiting', 'En attente du QR (connexion WhatsApp)…');
+    }
+  }).catch(() => setStatus('error', 'Erreur de connexion au serveur'));
+}
+
+function startPoll() {
+  if (qrIv) clearInterval(qrIv);
+  poll();
+  qrIv = setInterval(poll, 2500);
+}
+startPoll();
+
+document.getElementById('resetBtn').onclick = async () => {
+  setStatus('waiting', 'Réinitialisation…');
+  document.getElementById('qrSessionBox').style.display = 'none';
+  copyBtn.style.display = 'none';
+  try {
+    await fetch('/api/reset', { method: 'POST' });
+    setStatus('waiting', 'Session effacée, nouveau QR en cours…');
+    startPoll();
+  } catch (e) {
+    setStatus('error', e.message || 'Erreur reset');
+  }
+};
+
+copyBtn.onclick = () => {
+  const text = document.getElementById('qrSessionText').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    copyBtn.textContent = 'Copié !';
+    setTimeout(() => { copyBtn.textContent = 'Copier la session'; }, 2000);
+  });
+};
+</script>
+</body>
+</html>
