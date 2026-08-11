@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,40 +25,56 @@
   --warn-soft: rgba(255, 184, 77, .1);
   --radius: 16px;
   --radius-sm: 10px;
+  --ease: cubic-bezier(.16,.84,.44,1);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
-  background:
-    radial-gradient(1100px 560px at 50% -8%, #0d1c13 0%, #06090a 55%),
-    var(--bg);
+  background: var(--bg);
   min-height: 100vh;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
+
+.backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+.backdrop::before { content: ''; position: absolute; inset: -10%; background: radial-gradient(1100px 560px at 50% -8%, #0d1c13 0%, #06090a 55%); }
+.orb { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .3; animation: float 22s ease-in-out infinite; }
+.orb-1 { width: 380px; height: 380px; background: #14351f; top: -140px; left: -100px; }
+.orb-2 { width: 300px; height: 300px; background: #123c26; bottom: -100px; right: -80px; animation-delay: -8s; }
+@keyframes float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(25px,-20px) scale(1.05); } }
 
 ::selection { background: var(--accent-soft); color: var(--accent); }
 a { color: inherit; text-decoration: none; }
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.reveal { opacity: 0; animation: fadeUp .65s var(--ease) forwards; }
+.reveal-1 { animation-delay: .02s; }
+.reveal-2 { animation-delay: .1s; }
+.reveal-3 { animation-delay: .18s; }
 
 .shell { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 30px 20px 50px; }
 
 .top { width: 100%; max-width: 920px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
 .brand { display: flex; align-items: center; gap: 10px; font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1.05rem; }
 .brand-mark { width: 26px; height: 26px; flex-shrink: 0; }
-.brand-mark circle { fill: none; stroke: var(--accent); stroke-width: 2.4; }
-.brand-mark circle.node { fill: var(--accent); stroke: none; }
-.brand-mark line { stroke: var(--accent-dim); stroke-width: 2; stroke-dasharray: 3 3; }
-.back-link { display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--text-dim); padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px; transition: border-color .15s, color .15s; }
-.back-link:hover { color: var(--text); border-color: var(--accent-dim); }
+.brand-mark circle.node { fill: var(--accent); }
+.brand-mark circle.ring { fill: none; stroke: var(--accent); stroke-width: 1.4; opacity: .5; }
+.brand-mark .link-line { stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 20; animation: dash 3s linear infinite; }
+@keyframes dash { to { stroke-dashoffset: -40; } }
 
-.wrap {
-  width: 100%; max-width: 860px;
-  display: grid; grid-template-columns: 1fr 1.05fr; gap: 22px;
-  align-items: stretch;
+.back-link {
+  display: flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--text-dim);
+  padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px;
+  transition: border-color .18s var(--ease), color .18s var(--ease), transform .18s var(--ease);
 }
+.back-link:hover { color: var(--text); border-color: var(--accent-dim); transform: translateX(-2px); }
+.back-link svg { transition: transform .18s var(--ease); }
+
+.wrap { width: 100%; max-width: 860px; display: grid; grid-template-columns: 1fr 1.05fr; gap: 22px; align-items: stretch; }
 
 .info-card, .qr-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -66,11 +82,22 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   padding: 32px;
 }
 
-.eyebrow { font-family: 'JetBrains Mono', monospace; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: 'JetBrains Mono', monospace; font-size: .72rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--accent);
+}
+.eyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse-dot 2s infinite; }
+@keyframes pulse-dot { 0% { box-shadow: 0 0 0 0 rgba(37,211,102,.5); } 70% { box-shadow: 0 0 0 6px rgba(37,211,102,0); } 100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); } }
+
 .info-card h1 { font-family: 'Sora', sans-serif; font-size: 1.4rem; font-weight: 700; margin: 10px 0 14px; }
 
 .steps { display: flex; flex-direction: column; gap: 16px; margin-top: 6px; }
-.step { display: flex; gap: 13px; align-items: flex-start; }
+.step { display: flex; gap: 13px; align-items: flex-start; opacity: 0; animation: fadeUp .55s var(--ease) forwards; }
+.step:nth-child(1) { animation-delay: .2s; }
+.step:nth-child(2) { animation-delay: .28s; }
+.step:nth-child(3) { animation-delay: .36s; }
+.step:nth-child(4) { animation-delay: .44s; }
 .step-num {
   width: 26px; height: 26px; border-radius: 8px; background: var(--accent-soft); color: var(--accent);
   display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace;
@@ -84,24 +111,40 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   background: var(--surface-2); border: 1px solid var(--border-soft);
   font-size: .8rem; color: var(--text-faint); line-height: 1.55;
 }
+.note-box code { background: rgba(0,0,0,.3); border-radius: 4px; padding: 1px 5px; font-family: 'JetBrains Mono', monospace; color: var(--accent); }
 
 /* --- QR card --- */
 .qr-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
 
 .qr-frame {
   background: #fff; padding: 18px; border-radius: var(--radius-sm);
-  display: inline-block; margin: 6px 0 20px; position: relative;
+  display: inline-block; margin: 6px 0 20px; position: relative; overflow: hidden;
 }
 .qr-frame img { display: block; width: 236px; height: 236px; }
-.qr-frame .corner { position: absolute; width: 20px; height: 20px; border: 2.5px solid var(--accent); }
+.qr-frame .corner { position: absolute; width: 22px; height: 22px; border: 2.5px solid var(--accent); z-index: 2; }
 .qr-frame .corner.tl { top: -7px; left: -7px; border-right: none; border-bottom: none; border-radius: 6px 0 0 0; }
 .qr-frame .corner.tr { top: -7px; right: -7px; border-left: none; border-bottom: none; border-radius: 0 6px 0 0; }
 .qr-frame .corner.bl { bottom: -7px; left: -7px; border-right: none; border-top: none; border-radius: 0 0 0 6px; }
 .qr-frame .corner.br { bottom: -7px; right: -7px; border-left: none; border-top: none; border-radius: 0 0 6px 0; }
 
+.scan-line {
+  position: absolute; left: 6px; right: 6px; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent) 20%, var(--accent) 80%, transparent);
+  box-shadow: 0 0 10px 1px rgba(37,211,102,.7);
+  top: 18px;
+  animation: scan 2.6s ease-in-out infinite;
+  z-index: 1;
+}
+@keyframes scan {
+  0%, 100% { top: 18px; opacity: .9; }
+  50% { top: calc(100% - 24px); opacity: .9; }
+}
+.qr-frame.is-connected .scan-line { display: none; }
+
 .status {
   display: flex; align-items: center; gap: 9px; padding: 12px 16px; border-radius: var(--radius-sm);
   font-size: .87rem; border: 1px solid var(--border-soft); width: 100%; justify-content: center;
+  transition: background .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease);
 }
 .status .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .status.waiting { background: var(--warn-soft); color: var(--warn); border-color: rgba(255,184,77,.25); }
@@ -116,64 +159,77 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   background: #060a07; border: 1px solid var(--border); border-radius: var(--radius-sm);
   padding: 14px; margin-top: 14px; font-family: 'JetBrains Mono', monospace; font-size: .74rem;
   color: var(--text-dim); word-break: break-all; max-height: 130px; overflow-y: auto; width: 100%;
+  animation: fadeUp .4s var(--ease) forwards;
 }
 
 .actions { display: flex; gap: 10px; margin-top: 18px; width: 100%; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 1;
   padding: 13px; background: var(--accent); border: none; border-radius: var(--radius-sm);
-  color: #06110a; font-weight: 600; font-size: .9rem; cursor: pointer; transition: background .15s, transform .1s;
+  color: #06110a; font-weight: 600; font-size: .9rem; cursor: pointer;
+  transition: background .18s var(--ease), transform .12s var(--ease);
 }
-.btn:hover { background: #2fe374; }
-.btn:active { transform: scale(.99); }
+.btn:hover { background: #2fe374; transform: translateY(-1px); }
+.btn:active { transform: scale(.98); }
+.btn svg { width: 15px; height: 15px; }
 .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
 .btn-ghost:hover { background: var(--surface-2); color: var(--text); border-color: var(--border); }
 
-@media (max-width: 760px) {
-  .wrap { grid-template-columns: 1fr; }
+@media (max-width: 760px) { .wrap { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .step, .scan-line, .orb, .eyebrow::before, .brand-mark .link-line { animation: none !important; opacity: 1 !important; }
 }
 </style>
 </head>
 <body>
+
+<div class="backdrop">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+</div>
+
 <div class="shell">
 
-  <div class="top">
+  <div class="top reveal reveal-1">
     <a class="brand" href="/">
       <svg class="brand-mark" viewBox="0 0 26 26">
-        <circle class="node" cx="6" cy="19" r="2.6"/>
-        <circle class="node" cx="20" cy="7" r="2.6"/>
-        <line x1="8.2" y1="17" x2="17.8" y2="9"/>
+        <circle class="ring" cx="6" cy="19" r="5.2"/>
+        <circle class="ring" cx="20" cy="7" r="5.2"/>
+        <circle class="node" cx="6" cy="19" r="2.4"/>
+        <circle class="node" cx="20" cy="7" r="2.4"/>
+        <line class="link-line" x1="8.2" y1="17" x2="17.8" y2="9"/>
       </svg>
       KERM
     </a>
     <a class="back-link" href="/">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
-      Changer de méthode
+      Change Method
     </a>
   </div>
 
   <div class="wrap">
-    <div class="info-card">
-      <span class="eyebrow">Méthode QR</span>
-      <h1>Scanne pour connecter</h1>
+    <div class="info-card reveal reveal-2">
+      <span class="eyebrow">QR Method</span>
+      <h1>Scan to connect</h1>
       <div class="steps">
-        <div class="step"><div class="step-num">1</div><div class="step-text">Ouvre <b>WhatsApp</b> sur ton téléphone.</div></div>
-        <div class="step"><div class="step-num">2</div><div class="step-text">Va dans <b>Paramètres → Appareils connectés</b>.</div></div>
-        <div class="step"><div class="step-num">3</div><div class="step-text">Appuie sur <b>Connecter un appareil</b> et scanne le QR ci-contre.</div></div>
-        <div class="step"><div class="step-num">4</div><div class="step-text">Ta session est envoyée <b>en message privé</b> et s'affiche ici automatiquement.</div></div>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Open <b>WhatsApp</b> on your phone.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Go to <b>Settings → Linked Devices</b>.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Tap <b>Link a Device</b> and scan the QR code shown here.</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Your session is sent to you in a <b>private message</b> and appears here automatically.</div></div>
       </div>
-      <div class="note-box">Colle ensuite la session dans <code>config.js</code> (variable <code>SESSION_GENEREE</code>) ou dans <code>.env</code> (<code>SESSION_ID</code>) de ton bot KERM XMD.</div>
+      <div class="note-box">Paste the session into <code>config.js</code> (variable <code>SESSION_GENERATED</code>) or <code>.env</code> (<code>SESSION_ID</code>) of your KERM XMD bot.</div>
     </div>
 
-    <div class="qr-card">
+    <div class="qr-card reveal reveal-3">
       <div class="qr-frame" id="qrBox">
+        <div class="scan-line" id="scanLine"></div>
         <div class="corner tl"></div><div class="corner tr"></div>
         <div class="corner bl"></div><div class="corner br"></div>
         <img id="qrImg" src="/qr?t=" alt="QR Code">
       </div>
 
       <div id="qrStatus" class="status waiting">
-        <span class="dot"></span> Chargement du QR code…
+        <span class="dot"></span> Loading QR code…
       </div>
 
       <div id="qrSessionBox" style="display:none; width:100%;">
@@ -181,8 +237,14 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
       </div>
 
       <div class="actions">
-        <button class="btn btn-ghost" id="resetBtn">Réinitialiser</button>
-        <button class="btn" id="qrCopyBtn" style="display:none;">Copier la session</button>
+        <button class="btn btn-ghost" id="resetBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          Reset
+        </button>
+        <button class="btn" id="qrCopyBtn" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy Session
+        </button>
       </div>
     </div>
   </div>
@@ -193,6 +255,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 const img = document.getElementById('qrImg');
 const status = document.getElementById('qrStatus');
 const copyBtn = document.getElementById('qrCopyBtn');
+const qrBox = document.getElementById('qrBox');
 let qrIv = null;
 
 function showSession(session) {
@@ -200,6 +263,7 @@ function showSession(session) {
   document.getElementById('qrSessionBox').style.display = 'block';
   document.getElementById('qrSessionText').textContent = session;
   copyBtn.style.display = 'flex';
+  qrBox.classList.add('is-connected');
 }
 
 function setStatus(kind, text) {
@@ -210,45 +274,47 @@ function setStatus(kind, text) {
 function poll() {
   fetch('/api/status').then(r => r.json()).then(d => {
     if (d.connected) {
-      setStatus('connected', d.session ? 'Connecté ! Session prête ci-dessous.' : 'Connecté ! Préparation de la session…');
+      setStatus('connected', d.session ? 'Connected! Session ready below.' : 'Connected! Preparing session…');
       showSession(d.session);
       if (d.session && qrIv) { clearInterval(qrIv); qrIv = null; }
       return;
     }
     if (d.qr) {
       img.src = '/qr?t=' + Date.now();
-      setStatus('waiting', 'Scanne le QR code avec WhatsApp');
+      setStatus('waiting', 'Scan the QR code with WhatsApp');
     } else {
-      setStatus('waiting', 'En attente du QR (connexion WhatsApp)…');
+      setStatus('waiting', 'Waiting for QR (connecting to WhatsApp)…');
     }
-  }).catch(() => setStatus('error', 'Erreur de connexion au serveur'));
+  }).catch(() => setStatus('error', 'Connection error with the server'));
 }
 
 function startPoll() {
   if (qrIv) clearInterval(qrIv);
+  qrBox.classList.remove('is-connected');
   poll();
   qrIv = setInterval(poll, 2500);
 }
 startPoll();
 
 document.getElementById('resetBtn').onclick = async () => {
-  setStatus('waiting', 'Réinitialisation…');
+  setStatus('waiting', 'Resetting…');
   document.getElementById('qrSessionBox').style.display = 'none';
   copyBtn.style.display = 'none';
   try {
     await fetch('/api/reset', { method: 'POST' });
-    setStatus('waiting', 'Session effacée, nouveau QR en cours…');
+    setStatus('waiting', 'Session cleared, generating new QR…');
     startPoll();
   } catch (e) {
-    setStatus('error', e.message || 'Erreur reset');
+    setStatus('error', e.message || 'Reset error');
   }
 };
 
 copyBtn.onclick = () => {
   const text = document.getElementById('qrSessionText').textContent;
   navigator.clipboard.writeText(text).then(() => {
-    copyBtn.textContent = 'Copié !';
-    setTimeout(() => { copyBtn.textContent = 'Copier la session'; }, 2000);
+    const label = copyBtn.innerHTML;
+    copyBtn.textContent = 'Copied';
+    setTimeout(() => { copyBtn.innerHTML = label; }, 1800);
   });
 };
 </script>
