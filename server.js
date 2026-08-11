@@ -3,23 +3,29 @@
  * Génère une session via QR ou code d'appairage
  * Envoie la session en PM + affiche sur le site
  */
-const fs = require("fs");
-const path = require("path");
-const express = require("express");
-const qrcode = require("qrcode");
-const pino = require("pino");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import express from "express";
+import qrcode from "qrcode";
+import pino from "pino";
+import baileys from "@whiskeysockets/baileys";
+import { Boom } from "@hapi/boom";
+
+const {
+  useMultiFileAuthState,
+  makeWASocket,
+  Browsers,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  fetchLatestWaWebVersion
+} = baileys;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SESSION_DIR = path.join(__dirname, "Sessions");
-// Render / Railway / Koyeb injectent PORT. Vercel serverless ne convient pas à Baileys.
-const PORT = Number(process.env.PORT || process.env.SESSION_PORT || 3999);
-
-if (process.env.VERCEL) {
-  console.error(
-    "[FATAL] Ce serveur WhatsApp (Baileys) ne peut pas tourner sur Vercel (fonctions serverless sans WebSocket persistant).\n" +
-      "Déployez sur Render, Railway ou Koyeb. Voir README.md"
-  );
-  process.exit(1);
-}
+const PORT = process.env.SESSION_PORT || 3999;
 
 if (!fs.existsSync(SESSION_DIR)) {
   fs.mkdirSync(SESSION_DIR, { recursive: true });
@@ -36,22 +42,7 @@ let globalSession = null;
 let starting = false;
 let restartTimer = null;
 
-// Import dynamique de Baileys
-let baileys, Boom;
-async function loadModules() {
-  if (!baileys) {
-    baileys = await import("@whiskeysockets/baileys");
-  }
-  if (!Boom) {
-    const boom = await import("@hapi/boom");
-    Boom = boom.Boom;
-  }
-  return baileys;
-}
-
 async function resolveWaVersion() {
-  const { fetchLatestBaileysVersion, fetchLatestWaWebVersion } = await loadModules();
-  
   try {
     if (typeof fetchLatestWaWebVersion === "function") {
       const live = await fetchLatestWaWebVersion({});
@@ -172,9 +163,7 @@ async function startSession() {
     stopSocket();
     globalQr = null;
 
-    const { useMultiFileAuthState, makeWASocket, Browsers, DisconnectReason } = await loadModules();
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
-
     const version = await resolveWaVersion();
     const logger = pino({ level: "silent" });
 
@@ -302,7 +291,7 @@ async function startSession() {
 
 startSession().catch(console.error);
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`\nSession Serveur: http://0.0.0.0:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`\nSession Serveur: http://localhost:${PORT}`);
   console.log("Connectez via QR ou code d'appairage, puis recevez la session en PM.\n");
 });
