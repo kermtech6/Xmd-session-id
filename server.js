@@ -42,6 +42,21 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32kb" }));
 
+// Autorise le front Vercel (et autres) à appeler Railway en direct si besoin
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allow = process.env.CORS_ORIGIN || "*";
+  if (allow === "*" || (origin && allow.split(",").map((s) => s.trim()).includes(origin))) {
+    res.setHeader("Access-Control-Allow-Origin", allow === "*" ? "*" : origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  }
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+  next();
+});
+
 let sock = null;
 let pairingPhone = null;
 let globalQr = null;

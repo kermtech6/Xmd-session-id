@@ -1,16 +1,21 @@
 {
   "version": 2,
-  "buildCommand": null,
-  "outputDirectory": ".",
+  "functions": {
+    "api/railway.js": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/vercel-unsupported.html" }
+    { "source": "/qr", "destination": "/api/railway?path=/qr" },
+    { "source": "/health", "destination": "/api/railway?path=/health" },
+    { "source": "/api/status", "destination": "/api/railway?path=/api/status" },
+    { "source": "/api/pairing-code", "destination": "/api/railway?path=/api/pairing-code" },
+    { "source": "/api/reset", "destination": "/api/railway?path=/api/reset" }
   ],
   "headers": [
     {
       "source": "/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     }
   ]
 }

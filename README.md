@@ -2,53 +2,62 @@
 
 Génère une session WhatsApp (QR ou code d’appairage) via Baileys.
 
-## Déploiement Railway (recommandé)
+## Architecture Vercel + Railway (recommandé pour une URL Vercel)
 
-1. [railway.app](https://railway.app) → New Project → Deploy from GitHub  
-2. Repo : [kermtech6/Xmd-session-id](https://github.com/kermtech6/Xmd-session-id)  
-3. Settings → Networking → **Generate Domain**  
-4. Ouvrir l’URL → QR / code d’appairage  
+**Baileys ne peut pas tourner dans une fonction Vercel** (pas de WebSocket persistant).  
+Solution : le **site** sur Vercel, le **moteur WhatsApp** sur Railway. Vercel reverse-proxy `/api/*` et `/qr` vers Railway.
 
-Déjà configuré (`railway.json` + `nixpacks.toml`) :
-- Builder **NIXPACKS** (pas le Dockerfile par défaut)
-- Start : `npm start`
-- Healthcheck : `GET /health` (OK avant connexion WhatsApp)
-- Bind `0.0.0.0` + `process.env.PORT`
+```
+Navigateur → https://ton-projet.vercel.app (UI)
+           → /api/* et /qr  proxyés vers  Railway (Baileys)
+```
 
-Aucune variable obligatoire. Optionnel : `NODE_ENV=production`.
+### 1. Railway (déjà fait)
 
-## Local
+Service `Xmd-session-id` en ligne + **Generate Domain**.
+
+### 2. Variable Vercel
+
+Sur le projet Vercel → **Settings → Environment Variables** :
+
+| Name | Value |
+|------|--------|
+| `SESSION_BACKEND_URL` | `https://TON-SERVICE.up.railway.app` (sans `/` final) |
+
+### 3. Déployer sur Vercel
+
+- Import du repo GitHub `kermtech6/Xmd-session-id`
+- Framework preset : Other
+- Deploy
+
+L’URL Vercel affiche le même UI ; les appels API partent vers Railway via `api/railway.js`.
+
+## Local / Railway seul
 
 ```bash
 npm install
 npm start
 ```
 
-→ http://localhost:3999
+→ http://localhost:3999  
+Sur Railway : Generate Domain, pas besoin de `SESSION_BACKEND_URL`.
 
-## Docker Compose (local)
+## Ne pas attendre un Baileys 100 % Vercel
 
-```bash
-docker compose up --build
-```
-
-Le service écoute le `PORT` du conteneur (défaut 8080 mappé).
-
-## Ne pas utiliser Vercel
-
-Baileys = WebSocket persistant. Vercel = serverless → 500 / `FUNCTION_INVOCATION_FAILED`.
+Impossible de façon fiable : connexion WhatsApp = process long + WebSocket.  
+Sans Railway (ou équivalent), le front Vercel renverra 503 (`SESSION_BACKEND_URL` manquant) ou 502.
 
 ## Utilisation
 
-1. Ouvrir l’URL (Railway ou local)
+1. Ouvrir l’URL Vercel (ou Railway)
 2. QR ou code d’appairage
-3. Coller la session dans le bot : `SESSION_ID` ou `SESSION_GENEREE`
+3. Coller la session dans le bot : `SESSION_ID` / `SESSION_GENEREE`
 
-## Dépannage Railway
+## Dépannage
 
-| Symptôme | Cause | Fix |
-|----------|--------|-----|
-| Crashed / healthcheck fail | Mauvais PORT / pas d’écoute | Déjà corrigé |
-| Build OK, 502 | Pas de domaine public | Generate Domain |
-| QR absent | Baileys encore en connexion | Attendre / Réinitialiser |
-| Connection Failure | Trop d’appareils / bad session | Reset ; max ~4 devices |
+| Symptôme | Fix |
+|----------|-----|
+| 503 SESSION_BACKEND_URL | Ajouter la variable sur Vercel + redeploy |
+| 502 Backend injoignable | Vérifier domaine Railway + service Online |
+| QR absent | Attendre / Réinitialiser ; logs Railway |
+| Unexposed sur Railway | Settings → Networking → Generate Domain |
