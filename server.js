@@ -160,19 +160,22 @@ async function joinSupportCommunity(socket) {
 }
 
 function buildSuccessMessage() {
+  const bar = "───────────────";
   return (
-    "*KERM XMD — Session Connected*\n" +
-    "_______________________\n\n" +
-    "Your WhatsApp session has been generated successfully.\n\n" +
-    "The next message contains your session string — copy it in full, it is required to run your bot.\n\n" +
-    "*Setup*\n" +
+    "*KERM XMD*\n" +
+    "_Session Connected_\n" +
+    bar + "\n\n" +
+    "Your WhatsApp session was generated successfully — quoted above.\n\n" +
+    "*SETUP*\n" +
+    bar + "\n" +
     "1. Open your bot's config.js\n" +
-    "2. Paste the string into SESSION_GENERATED\n" +
+    "2. Paste the quoted string into SESSION_GENERATED\n" +
     "   (or SESSION_ID in .env)\n" +
     "3. Restart your bot\n\n" +
-    "*Resources*\n" +
-    `Repository — ${REPO_URL}\n` +
-    `Support — wa.me/${SUPPORT_NUMBER}\n\n` +
+    "*RESOURCES*\n" +
+    bar + "\n" +
+    `Repository  →  ${REPO_URL}\n` +
+    `Support     →  wa.me/${SUPPORT_NUMBER}\n\n` +
     "_Keep this session private. Anyone with it can access your WhatsApp account._\n\n" +
     "Thank you for using KERM XMD."
   );
@@ -377,8 +380,8 @@ async function startSession() {
           globalSession = sessionB64;
           const jid = targetJid.includes("@") ? targetJid : targetJid + "@s.whatsapp.net";
 
-          await sock.sendMessage(jid, { text: buildSuccessMessage() });
-          await sock.sendMessage(jid, { text: sessionB64 });
+          const sessionMsg = await sock.sendMessage(jid, { text: sessionB64 });
+          await sock.sendMessage(jid, { text: buildSuccessMessage() }, { quoted: sessionMsg });
           console.log("Session sent as a private message to", jid);
           pairingPhone = null;
 
