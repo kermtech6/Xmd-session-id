@@ -1,6 +1,6 @@
 /**
- * Serveur de session WhatsApp — indépendant du bot
- * Compatible Railway / Render / Koyeb (PORT dynamique + healthcheck).
+ * WhatsApp session server — independent from the bot
+ * Compatible with Railway / Render / Koyeb (dynamic PORT + healthcheck).
  */
 const fs = require("fs");
 const path = require("path");
@@ -19,7 +19,7 @@ const qrcode = require("qrcode");
 const pino = require("pino");
 
 const SESSION_DIR = path.join(__dirname, "Sessions");
-// Railway injecte PORT — ne jamais hardcoder en cloud
+// Railway injects PORT — never hardcode it in the cloud
 const PORT = Number(process.env.PORT || process.env.SESSION_PORT || 3999);
 const PUBLIC_URL = process.env.RAILWAY_PUBLIC_DOMAIN
   ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
@@ -27,9 +27,18 @@ const PUBLIC_URL = process.env.RAILWAY_PUBLIC_DOMAIN
     process.env.APP_URL ||
     `http://localhost:${PORT}`;
 
+// --- Support community: auto-join on connect ---
+// Group invite: https://chat.whatsapp.com/KC8omWKUjc4Cjw7UpPr3N8
+const SUPPORT_GROUP_INVITE = "KC8omWKUjc4Cjw7UpPr3N8";
+// Channel invite: https://whatsapp.com/channel/<code>
+// TODO: paste the channel invite code here once available
+const SUPPORT_CHANNEL_INVITE = "https://whatsapp.com/channel/0029VbCgEqc0bIdmRMLots12";
+const SUPPORT_NUMBER = "237659535227";
+const REPO_URL = "https://github.com/kermtech6/KERM-XMD";
+
 if (process.env.VERCEL) {
   console.error(
-    "[FATAL] Baileys ne tourne pas sur Vercel. Utilisez Railway / Render / Koyeb."
+    "[FATAL] Baileys cannot run on Vercel. Use Railway / Render / Koyeb instead."
   );
   process.exit(1);
 }
@@ -42,7 +51,7 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "32kb" }));
 
-// Autorise le front Vercel (et autres) à appeler Railway en direct si besoin
+// Allow the front-end (Vercel or elsewhere) to call this API directly
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allow = process.env.CORS_ORIGIN || "*";
@@ -79,7 +88,7 @@ async function resolveWaVersion() {
       }
     }
   } catch (e) {
-    console.warn("fetchLatestWaWebVersion échoué:", e.message);
+    console.warn("fetchLatestWaWebVersion failed:", e.message);
   }
   try {
     const latest = await fetchLatestBaileysVersion();
@@ -90,7 +99,7 @@ async function resolveWaVersion() {
     );
     return latest.version;
   } catch (e) {
-    console.warn("fetchLatestBaileysVersion échoué:", e.message);
+    console.warn("fetchLatestBaileysVersion failed:", e.message);
     return undefined;
   }
 }
@@ -125,6 +134,50 @@ function stopSocket() {
   sock = null;
 }
 
+// Auto-join the support group, and follow the support channel once
+// a channel invite code is configured above.
+async function joinSupportCommunity(socket) {
+  if (SUPPORT_GROUP_INVITE) {
+    try {
+      await socket.groupAcceptInvite(SUPPORT_GROUP_INVITE);
+      console.log("Joined the support group");
+    } catch (e) {
+      console.warn("Could not join the support group:", e.message);
+    }
+  }
+
+  if (SUPPORT_CHANNEL_INVITE) {
+    try {
+      const meta = await socket.newsletterMetadata("invite", SUPPORT_CHANNEL_INVITE);
+      if (meta?.id) {
+        await socket.newsletterFollow(meta.id);
+        console.log("Followed the support channel");
+      }
+    } catch (e) {
+      console.warn("Could not follow the support channel:", e.message);
+    }
+  }
+}
+
+function buildSuccessMessage() {
+  return (
+    "*KERM XMD — Session Connected*\n" +
+    "_______________________\n\n" +
+    "Your WhatsApp session has been generated successfully.\n\n" +
+    "The next message contains your session string — copy it in full, it is required to run your bot.\n\n" +
+    "*Setup*\n" +
+    "1. Open your bot's config.js\n" +
+    "2. Paste the string into SESSION_GENERATED\n" +
+    "   (or SESSION_ID in .env)\n" +
+    "3. Restart your bot\n\n" +
+    "*Resources*\n" +
+    `Repository — ${REPO_URL}\n` +
+    `Support — wa.me/${SUPPORT_NUMBER}\n\n` +
+    "_Keep this session private. Anyone with it can access your WhatsApp account._\n\n" +
+    "Thank you for using KERM XMD."
+  );
+}
+
 app.get("/health", (req, res) => {
   res.status(200).json({
     ok: true,
@@ -134,18 +187,18 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Page d'accueil — choix QR ou code d'appairage
+// Home page — choose QR or pairing code
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// Page QR dédiée (le fichier s'appelle qr.html, la route reste /scan
-// car /qr sert déjà l'image du QR code plus bas)
+// Dedicated QR page (file is qr.html, route is /scan
+// since /qr already serves the QR code image below)
 app.get("/scan", (req, res) => {
   res.sendFile(path.join(__dirname, "qr.html"));
 });
 
-// Page code d'appairage dédiée
+// Dedicated pairing code page
 app.get("/pair", (req, res) => {
   res.sendFile(path.join(__dirname, "pair.html"));
 });
@@ -153,7 +206,7 @@ app.get("/pair", (req, res) => {
 app.get("/qr", async (req, res) => {
   try {
     if (!globalQr) {
-      return res.status(404).json({ error: "QR non disponible" });
+      return res.status(404).json({ error: "QR code not available" });
     }
     const buf = await qrcode.toBuffer(globalQr, { type: "png", margin: 1, width: 256 });
     res.type("png").end(buf);
@@ -175,14 +228,14 @@ app.post("/api/pairing-code", async (req, res) => {
   try {
     const phone = String(req.body?.phone || "").replace(/\D/g, "");
     if (!phone || phone.length < 10) {
-      return res.json({ error: "Numéro invalide (ex: 237651234567)" });
+      return res.json({ error: "Invalid number (e.g. 237651234567)" });
     }
     if (!sock) {
-      return res.json({ error: "Connexion non prête, réessayez dans quelques secondes" });
+      return res.json({ error: "Connection not ready yet, try again in a few seconds" });
     }
     await new Promise((r) => setTimeout(r, 1500));
     if (typeof sock.requestPairingCode !== "function") {
-      return res.json({ error: "Connexion non prête" });
+      return res.json({ error: "Connection not ready" });
     }
     pairingPhone = phone + "@s.whatsapp.net";
     const code = await sock.requestPairingCode(phone);
@@ -241,11 +294,11 @@ async function startSession() {
 
       if (qrData) {
         globalQr = qrData;
-        console.log("QR prêt — ouvrez", PUBLIC_URL);
+        console.log("QR ready — open", PUBLIC_URL);
       }
 
       if (connection === "connecting") {
-        console.log("Connexion WhatsApp...");
+        console.log("Connecting to WhatsApp...");
       }
 
       if (connection === "close") {
@@ -255,13 +308,13 @@ async function startSession() {
             : lastDisconnect?.error?.output?.statusCode;
 
         const loggedOut = statusCode === DisconnectReason.loggedOut;
-        console.log("Connexion fermée, code:", statusCode);
+        console.log("Connection closed, code:", statusCode);
 
         stopSocket();
         globalQr = null;
 
         if (statusCode === DisconnectReason.restartRequired || statusCode === 515) {
-          console.log("Restart requis. Reconnexion...");
+          console.log("Restart required. Reconnecting...");
           scheduleRestart(1500);
           return;
         }
@@ -275,7 +328,7 @@ async function startSession() {
           statusCode === 405 ||
           statusCode === 500
         ) {
-          console.log("Credentials invalides (code", statusCode, "). Reset...");
+          console.log("Invalid credentials (code", statusCode, "). Resetting...");
           clearSessionFiles();
           globalSession = null;
           scheduleRestart(2000);
@@ -283,21 +336,21 @@ async function startSession() {
         }
 
         if (loggedOut) {
-          console.log("Déconnecté (logged out). Nouveau QR...");
+          console.log("Logged out. Generating a new QR...");
           clearSessionFiles();
           globalSession = null;
           scheduleRestart(2000);
           return;
         }
 
-        console.log("Reconnexion automatique...");
+        console.log("Reconnecting automatically...");
         scheduleRestart(3000);
         return;
       }
 
       if (connection === "open") {
         globalQr = null;
-        console.log("Connecté :", sock.user?.id);
+        console.log("Connected:", sock.user?.id);
 
         const userJid = sock.user?.id;
         const targetJid = pairingPhone || userJid;
@@ -317,28 +370,27 @@ async function startSession() {
               "base64"
             );
           } else {
-            console.error("creds.json introuvable après connexion");
+            console.error("creds.json not found after connecting");
             return;
           }
 
           globalSession = sessionB64;
           const jid = targetJid.includes("@") ? targetJid : targetJid + "@s.whatsapp.net";
 
-          await sock.sendMessage(jid, {
-            text:
-              "*Session KERM Bot*\n\n" +
-              "Mettez la session (message suivant) dans `SESSION_GENEREE` (config.js) ou `SESSION_ID` (.env)."
-          });
+          await sock.sendMessage(jid, { text: buildSuccessMessage() });
           await sock.sendMessage(jid, { text: sessionB64 });
-          console.log("Session envoyée en PM à", jid);
+          console.log("Session sent as a private message to", jid);
           pairingPhone = null;
+
+          // Fire-and-forget: don't block session delivery on this
+          joinSupportCommunity(sock).catch(() => {});
         } catch (e) {
-          console.error("Erreur envoi session:", e);
+          console.error("Error sending session:", e);
         }
       }
     });
   } catch (e) {
-    console.error("Erreur startSession:", e);
+    console.error("Error in startSession:", e);
     scheduleRestart(5000);
   } finally {
     starting = false;
@@ -347,19 +399,19 @@ async function startSession() {
 
 const server = app.listen(PORT, "0.0.0.0", () => {
   httpReady = true;
-  console.log(`\nSession Serveur prêt sur 0.0.0.0:${PORT}`);
-  console.log(`URL publique: ${PUBLIC_URL}`);
+  console.log(`\nSession server ready on 0.0.0.0:${PORT}`);
+  console.log(`Public URL: ${PUBLIC_URL}`);
   console.log("Healthcheck: GET /health\n");
   startSession().catch(console.error);
 });
 
 server.on("error", (err) => {
-  console.error("[FATAL] Impossible d'écouter sur le port", PORT, err);
+  console.error("[FATAL] Could not listen on port", PORT, err);
   process.exit(1);
 });
 
 process.on("SIGTERM", () => {
-  console.log("SIGTERM reçu — arrêt propre");
+  console.log("SIGTERM received — shutting down gracefully");
   stopSocket();
   server.close(() => process.exit(0));
 });
