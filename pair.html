@@ -253,6 +253,10 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
       </button>
 
       <div id="pairCode" class="code-display" style="display:none;"></div>
+      <button class="btn btn-ghost" id="copyCodeBtn" style="display:none; margin-top:-4px; margin-bottom:14px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy Code
+      </button>
       <div id="pairStatus" class="status" style="display:none;"></div>
 
       <div id="pairSessionBox" style="display:none;">
@@ -272,6 +276,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 
 <script>
 let pairIv = null;
+let currentPairCode = '';
 
 function setStatus(kind, text) {
   const el = document.getElementById('pairStatus');
@@ -288,6 +293,7 @@ function showSession(session) {
 }
 
 function renderCode(code) {
+  currentPairCode = code;
   const box = document.getElementById('pairCode');
   box.innerHTML = '';
   box.style.display = 'flex';
@@ -298,6 +304,7 @@ function renderCode(code) {
     span.style.animationDelay = (i * 0.04) + 's';
     box.appendChild(span);
   });
+  document.getElementById('copyCodeBtn').style.display = 'flex';
 }
 
 document.getElementById('getCodeBtn').onclick = async () => {
@@ -343,6 +350,15 @@ document.getElementById('getCodeBtn').onclick = async () => {
 
   btn.disabled = false;
   btn.innerHTML = defaultLabel;
+};
+
+document.getElementById('copyCodeBtn').onclick = (e) => {
+  const btn = e.currentTarget;
+  const label = btn.innerHTML;
+  navigator.clipboard.writeText(currentPairCode).then(() => {
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.innerHTML = label; }, 1800);
+  });
 };
 
 document.getElementById('pairCopyBtn').onclick = (e) => {
